@@ -4,6 +4,10 @@ import { __dirname } from "./utils.js";
 import path from "path";
 import { viewRouter } from "./routes/views.routes.js";
 import {Server} from "socket.io";
+import {ChatFilesManager} from "./manager/chatFilesManager.js";
+
+const chatManager = new ChatFilesManager("chat.json");
+console.log(chatManager);
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -24,17 +28,19 @@ app.set('views', path.join(__dirname,"/views"));
 //routes
 app.use(viewRouter);
 
-let messages = [];
+// let messages = [];
 //funcion principal del servidor websocket
-io.on("connection",(socket)=>{
+io.on("connection", async(socket)=>{
     console.log(`Nuevo cliente conectado ${socket.id}`);
-    socket.on("authenticated",(data)=>{
+    socket.on("authenticated", async(data)=>{
+        const messages = await chatManager.getMessages();
         socket.emit("messageChat", messages);
         socket.broadcast.emit("newUser", `El usuario ${data.user} se acaba de conectar`);
     });
 
-    socket.on("message",(msgClient)=>{
-        messages.push(msgClient);
+    socket.on("message", async(msgClient)=>{
+        await chatManager.save(msgClient);
+        const messages = await chatManager.getMessages();
         io.emit("messageChat", messages);
     });
 });
